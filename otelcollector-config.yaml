@@ -1,0 +1,55 @@
+# Copyright The OpenTelemetry Authors
+# SPDX-License-Identifier: Apache-2.0
+
+
+receivers:
+  datadog:
+    endpoint: 0.0.0.0:8126
+    read_timeout: 60s
+
+exporters:
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+  logging:
+  prometheus:
+    endpoint: "otelcol:9464"
+    resource_to_telemetry_conversion:
+      enabled: true
+    enable_open_metrics: true
+  # jaeger_thrift:
+  #   endpoint: http://jaeger:14268/api/traces
+  #   tls:
+  #     insecure: true
+processors:
+  batch:
+  transform:
+    metric_statements:
+      - context: metric
+        statements:
+          - set(description, "Measures the duration of inbound HTTP requests") where name == "http.server.duration"
+  filter:
+    metrics:
+      exclude:
+        match_type: strict
+        metric_names:
+          - queueSize
+
+connectors:
+  spanmetrics:
+
+service:
+  pipelines:
+    traces:
+      receivers: [datadog]
+      processors: [batch]
+      exporters: [otlp]
+    # metrics:
+    #   receivers: [datadog, spanmetrics]
+    #   processors: [filter, transform, batch]
+    #   exporters: [prometheus, logging]
+    # logs:
+    #   receivers: [datadog]
+    #   processors: [batch]
+    #   exporters: [logging]
